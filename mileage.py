@@ -32,6 +32,20 @@ Options:
   INFILE  Input file.
   MILEAGE  Beginning mileage. If not provided, milage (but not
            fuel volume) of first entry will be used. (default: 0)
+
+Each line of INFILE is expected to be in the following format:
+mileage, gallons
+eg:
+47333, 15.580
+
+A line in the following format is acceptable:
+milage, gallons, <anything you want>
+eg:
+47333, 15.580, August 4 Elko Nevada, cheapest grade @ 3.25, $48.24
+Anything after the second comma is ignored.
+
+Any line that can not be parsed, is reported as such and ignored.
+
 """
 
 # from __future__ imports
@@ -53,9 +67,10 @@ VERSION = "0.0.1"
 def parse_line(l):
     try:
         list = l.split(',')
-        odo = int(list[0])
+        odo = float(list[0])
         gal = float(list[1])
-        return (odo, gal)
+        comment = ','.join(list[2:])
+        return (odo, gal, comment)
     except ValueError:
         return None
 
@@ -70,43 +85,44 @@ def main():
                     .format(fname ))
         sys.exit(1)
 
+    #set prev and adjust if required:
+    prev = 0.0
     if args['MILEAGE']:
         try:
-            prev = int(args['MILEAGE'])
+            prev = float(args['MILEAGE'])
         except ValueError:
             print("Invalid 'MILEAGE' argument.")
             print("Will ignore first fuel volume.")
-            prev = 0
-    else:
-        prev = 0
+            prev = 0.0
 
-    count = sum = 0
-    fuel = 0.0
+    count = 0
+    total_miles = fuel = 0.0
 
     with open(fname, 'r') as f:
         for line in f:
             line = line.strip()
             if line:
                 try:
-                    odo, gal = parse_line(line)
+                    odo, gal, ignored_comment = parse_line(line)
                     if prev!=0:
                         miles = odo - prev
-                        sum = sum + miles
+                        total_miles = total_miles + miles
                         fuel = fuel + gal
                         count+=1
                         milage = miles/gal
                         print(
-        "{:.3f} miles on {:2.3f} galons = {:.3f} miles per gallon"
+        "{:.1f} miles on {:2.3f} galons = {:.3f} miles per gallon"
                                   .format(miles, gal, milage))
                     prev = odo
                 except TypeError:
                     print("Unparseable line: '{}'."
                             .format(line))
 
-    milage = sum/fuel
+    milage = total_miles/fuel
+    print( "SUMMARY:")
     print(
-        "SUMMARY: Average fuel consumption is {:3.2f} miles per gallon"
-                .format(milage))
+    "Avg fuel consumption (over {:.1f} mi.) is {:3.2f} mpg."
+                .format(total_miles, milage))
 
 if __name__ == '__main__':  # code block to run the application
     print("Running Python3 script: 'mileage.py'.......")
